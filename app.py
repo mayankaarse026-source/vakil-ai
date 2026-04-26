@@ -150,7 +150,7 @@ def generate_fir_advanced(name, address, mobile, incident, date, time, police_st
 
 महोदय,
 
-मैं {name}, निवासी {address}, मोबाइल नंबर {mobile} हूँ।
+सविनय निवेदन है कि मैं {name}, मोबाइल नंबर {mobile}, निवासी {address} हूँ।
 
 घटना का दिनांक: {date}
 घटना का समय: {time}
@@ -158,7 +158,7 @@ def generate_fir_advanced(name, address, mobile, incident, date, time, police_st
 घटना का विवरण:
 {incident}
 
-कृपया उचित कानूनी कार्यवाही करें।
+अतः आपसे निवेदन है कि कृपया इस मामले में FIR दर्ज कर उचित कानूनी कार्यवाही करने की कृपा करें।
 
 {f"लागू धाराएँ: {sections}" if sections else ""}
 
