@@ -38,7 +38,7 @@ if tesseract_path:
     pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
 # ==============================
-# 🔒 FILE TYPES
+# 🔒 FILE VALIDATION (FIXED OCR ISSUE)
 # ==============================
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
@@ -46,7 +46,7 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ==============================
-# 🗄️ DATABASE (FIXED)
+# 🗄️ DATABASE (MULTI PAGE SUPPORT)
 # ==============================
 def init_db():
     with sqlite3.connect(DB_FILE, check_same_thread=False) as conn:
@@ -54,6 +54,7 @@ def init_db():
         c.execute("""
             CREATE TABLE IF NOT EXISTS chat_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                page TEXT,
                 user TEXT,
                 bot TEXT,
                 time TEXT
@@ -63,28 +64,29 @@ def init_db():
 
 init_db()
 
-def save_history(user, bot):
+def save_history(page, user, bot):
     try:
         with sqlite3.connect(DB_FILE, check_same_thread=False) as conn:
             c = conn.cursor()
             c.execute(
-                "INSERT INTO chat_history (user, bot, time) VALUES (?, ?, ?)",
-                (user, bot, str(datetime.datetime.now()))
+                "INSERT INTO chat_history (page, user, bot, time) VALUES (?, ?, ?, ?)",
+                (page, user, bot, str(datetime.datetime.now()))
             )
             conn.commit()
     except Exception as e:
         print("DB Save Error:", e)
 
-def load_history():
+def load_history(page):
     try:
         with sqlite3.connect(DB_FILE, check_same_thread=False) as conn:
             c = conn.cursor()
             c.execute("""
                 SELECT user, bot, time
                 FROM chat_history
-                ORDER BY id DESC
-                LIMIT 50
-            """)
+                WHERE page=?
+                ORDER BY id ASC
+                LIMIT 100
+            """, (page,))
             rows = c.fetchall()
 
         return [{"user": r[0], "bot": r[1], "time": r[2]} for r in rows]
@@ -94,7 +96,7 @@ def load_history():
         return []
 
 # ==============================
-# 🤖 OPENROUTER AI
+# 🤖 AI (OPENROUTER)
 # ==============================
 api_key = os.getenv("OPENROUTER_API_KEY")
 
@@ -121,13 +123,14 @@ def vakil_ai(user_input):
         return f"AI Error: {str(e)}"
 
 # ==============================
-# 🖼️ OCR
+# 🖼️ OCR (FIXED SAFE IMAGE ONLY)
 # ==============================
 def read_image_text(path):
     try:
         img = Image.open(path)
+
+        img = img.convert("RGB")
         img = img.resize((800, 800))
-        img = img.convert("L")
 
         text = pytesseract.image_to_string(img, lang="eng+hin").strip()
 
@@ -168,7 +171,7 @@ def generate_fir_advanced(name, address, mobile, incident, date, time, police_st
 दिनांक: {date}
 समय: {time}
 
-अतः आपसे निवेदन है कि कृपया इस मामले में FIR दर्ज कर उचित कानूनी कार्यवाही करने की कृपा करें।
+कृपया उचित कार्यवाही करें।
 
 {f"धाराएँ: {sections}" if sections else ""}
 
@@ -183,10 +186,15 @@ def generate_fir_advanced(name, address, mobile, incident, date, time, police_st
 def home():
     return render_template("index.html")
 
+# ==============================
+# 💬 CHAT (PAGE SUPPORT)
+# ==============================
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.json
+
     user_msg = data.get("message", "").strip()
+    page = data.get("page", "main")
 
     if not user_msg:
         return jsonify({"reply": "कृपया संदेश लिखें"})
@@ -196,18 +204,33 @@ def chat():
     else:
         bot_reply = vakil_ai(user_msg)
 
-    save_history(user_msg, bot_reply)
+    save_history(page, user_msg, bot_reply)
 
     return jsonify({"reply": bot_reply})
 
+# ==============================
+# 📜 HISTORY (PAGE WISE)
+# ==============================
+@app.route("/history/<page>")
+def history(page):
+    return jsonify(load_history(page))
+
+# ==============================
+# 📎 UPLOAD (OCR SAFE FIX)
+# ==============================
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
         file = request.files["file"]
 
         filename = secure_filename(file.filename)
-        unique_name = str(uuid.uuid4()) + "_" + filename
+        ext = filename.rsplit(".", 1)[1].lower()
 
+        # ❌ BLOCK VIDEO / NON-IMAGES
+        if ext not in ["png", "jpg", "jpeg"]:
+            return jsonify({"error": "❌ केवल image files allow हैं"})
+
+        unique_name = str(uuid.uuid4()) + "_" + filename
         path = os.path.join(app.config["UPLOAD_FOLDER"], unique_name)
         file.save(path)
 
@@ -222,20 +245,25 @@ def upload():
     except Exception as e:
         return jsonify({"error": str(e)})
 
+# ==============================
+# 📁 SERVE UPLOADS
+# ==============================
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
-@app.route("/history")
-def history():
-    return jsonify(load_history())
-
+# ==============================
+# ⚖️ LAW API
+# ==============================
 @app.route("/law", methods=["POST"])
 def law():
     data = request.json
     result = vakil_ai("भारतीय कानून समझाओ: " + data.get("query", ""))
     return jsonify({"result": result})
 
+# ==============================
+# 📄 FIR API
+# ==============================
 @app.route("/fir", methods=["POST"])
 def fir():
     data = request.json
@@ -254,7 +282,7 @@ def fir():
     })
 
 # ==============================
-# 🚀 RUN (RENDER FIXED)
+# 🚀 RUN (RENDER SAFE)
 # ==============================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
