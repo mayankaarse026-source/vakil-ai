@@ -235,4 +235,7 @@ body {
 
     /* ✅ better spacing */
     width: 35px;
+    .bot-message {
+    white-space: pre-wrap;
+}
 }
