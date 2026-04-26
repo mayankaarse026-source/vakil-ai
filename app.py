@@ -38,7 +38,7 @@ if tesseract_path:
     pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
 # ==============================
-# 🔒 FILE CHECK
+# 🔒 FILE TYPES
 # ==============================
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
@@ -46,10 +46,10 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ==============================
-# 🗄️ DATABASE
+# 🗄️ DATABASE (FIXED)
 # ==============================
 def init_db():
-    with sqlite3.connect(DB_FILE) as conn:
+    with sqlite3.connect(DB_FILE, check_same_thread=False) as conn:
         c = conn.cursor()
         c.execute("""
             CREATE TABLE IF NOT EXISTS chat_history (
@@ -64,24 +64,37 @@ def init_db():
 init_db()
 
 def save_history(user, bot):
-    with sqlite3.connect(DB_FILE) as conn:
-        c = conn.cursor()
-        c.execute(
-            "INSERT INTO chat_history (user, bot, time) VALUES (?, ?, ?)",
-            (user, bot, str(datetime.datetime.now()))
-        )
-        conn.commit()
+    try:
+        with sqlite3.connect(DB_FILE, check_same_thread=False) as conn:
+            c = conn.cursor()
+            c.execute(
+                "INSERT INTO chat_history (user, bot, time) VALUES (?, ?, ?)",
+                (user, bot, str(datetime.datetime.now()))
+            )
+            conn.commit()
+    except Exception as e:
+        print("DB Save Error:", e)
 
 def load_history():
-    with sqlite3.connect(DB_FILE) as conn:
-        c = conn.cursor()
-        c.execute("SELECT user, bot, time FROM chat_history ORDER BY id DESC LIMIT 50")
-        rows = c.fetchall()
+    try:
+        with sqlite3.connect(DB_FILE, check_same_thread=False) as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT user, bot, time
+                FROM chat_history
+                ORDER BY id DESC
+                LIMIT 50
+            """)
+            rows = c.fetchall()
 
-    return [{"user": r[0], "bot": r[1], "time": r[2]} for r in rows]
+        return [{"user": r[0], "bot": r[1], "time": r[2]} for r in rows]
+
+    except Exception as e:
+        print("DB Load Error:", e)
+        return []
 
 # ==============================
-# 🤖 OPENROUTER
+# 🤖 OPENROUTER AI
 # ==============================
 api_key = os.getenv("OPENROUTER_API_KEY")
 
@@ -90,15 +103,12 @@ client = OpenAI(
     base_url="https://openrouter.ai/api/v1"
 )
 
-# ==============================
-# 🧠 AI FUNCTION
-# ==============================
 def vakil_ai(user_input):
     try:
         response = client.chat.completions.create(
             model="openai/gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "आप भारतीय कानूनी सहायक हैं। छोटा और स्पष्ट जवाब दें।"},
+                {"role": "system", "content": "आप भारतीय कानूनी सहायक हैं। सरल और छोटा उत्तर दें।"},
                 {"role": "user", "content": user_input}
             ],
             temperature=0.3,
@@ -134,7 +144,7 @@ def read_image_text(path):
         return "", f"OCR Error: {str(e)}"
 
 # ==============================
-# 📄 FIR
+# 📄 FIR GENERATOR
 # ==============================
 def generate_fir_advanced(name, address, mobile, incident, date, time, police_station, sections=""):
     today = datetime.date.today().strftime("%d-%m-%Y")
@@ -150,23 +160,20 @@ def generate_fir_advanced(name, address, mobile, incident, date, time, police_st
 
 महोदय,
 
-सविनय निवेदन है कि मैं {name}, मोबाइल नंबर {mobile}, निवासी {address} हूँ।
+मैं {name}, मोबाइल {mobile}, निवासी {address} हूँ।
 
-घटना का दिनांक: {date}
-घटना का समय: {time}
-
-घटना का विवरण:
+घटना:
 {incident}
 
-अतः आपसे निवेदन है कि कृपया इस मामले में FIR दर्ज कर उचित कानूनी कार्यवाही करने की कृपा करें।
+दिनांक: {date}
+समय: {time}
 
-{f"लागू धाराएँ: {sections}" if sections else ""}
+कृपया उचित कार्यवाही करें।
 
-धन्यवाद।
+{f"धाराएँ: {sections}" if sections else ""}
 
 भवदीय,
 {name}
-मोबाइल: {mobile}
 """.strip()
 
 # ==============================
@@ -226,7 +233,7 @@ def history():
 @app.route("/law", methods=["POST"])
 def law():
     data = request.json
-    result = vakil_ai("भारतीय कानून में समझाओ: " + data.get("query", ""))
+    result = vakil_ai("भारतीय कानून समझाओ: " + data.get("query", ""))
     return jsonify({"result": result})
 
 @app.route("/fir", methods=["POST"])
@@ -247,8 +254,8 @@ def fir():
     })
 
 # ==============================
-# 🚀 RUN
+# 🚀 RUN (RENDER FIXED)
 # ==============================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
