@@ -159,25 +159,44 @@ def read_image_text(path):
 # ==============================
 # 📄 FIR
 # ==============================
-def generate_fir(name, incident):
-    date = datetime.date.today().strftime("%d-%m-%Y")
+def generate_fir_advanced(name, address, mobile, incident, date, time, police_station, sections=""):
+    today = datetime.date.today().strftime("%d-%m-%Y")
 
     return f"""
 सेवा में,
-थाना प्रभारी
+थाना प्रभारी,  
+{police_station}
 
-दिनांक: {date}
+दिनांक: {today}
 
-विषय: FIR दर्ज करने हेतु आवेदन
+विषय: प्रथम सूचना रिपोर्ट (FIR) दर्ज कराने हेतु आवेदन
 
 महोदय,
 
-मेरा नाम {name} है।
-घटना का विवरण: {incident}
+मैं {name}, निवासी {address}, मोबाइल नंबर {mobile}, 
+आपके थाना क्षेत्र में घटित एक घटना के संबंध
+ में यह आवेदन प्रस्तुत कर रहा/रही हूँ।
 
-कृपया उचित कार्यवाही करें।
+घटना का दिनांक: {date}  
+घटना का समय: {time}  
+
+घटना का विवरण:  
+{incident}
+
+अतः आपसे निवेदन है कि उक्त घटना के संबंध में 
+उचित धाराओं में मामला दर्ज कर आवश्यक कानूनी कार्यवाही करने की कृपा करें।
+
+{f"लागू धाराएँ (यदि ज्ञात हों): {sections}" if sections else ""}
+
+मैं यह घोषणा करता/करती हूँ
+ कि उपरोक्त दी गई जानकारी मेरे ज्ञान एवं विश्वास के अनुसार सत्य है।
 
 धन्यवाद।
+
+भवदीय,  
+{name}  
+{address}  
+मोबाइल: {mobile}
 """.strip()
 
 # ==============================
@@ -278,13 +297,23 @@ def law():
 @app.route("/fir", methods=["POST"])
 def fir():
     data = request.json
-    name = data.get("name")
-    incident = data.get("incident")
 
-    return jsonify({"fir": generate_fir(name, incident)})
+    return jsonify({
+        "fir": generate_fir_advanced(
+            data.get("name"),
+            data.get("address"),
+            data.get("mobile"),
+            data.get("incident"),
+            data.get("date"),
+            data.get("time"),
+            data.get("police_station"),
+            data.get("sections", "")
+        )
+    })
 
 # ==============================
 # 🚀 RUN
 # ==============================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    port=int(os.environ.get("PORT",10000))
+    app.run(host="0.0.0.0", port=10000, debug=False)
