@@ -1,4 +1,3 @@
-
 document.addEventListener("DOMContentLoaded", () => {
 
 const chatArea = document.getElementById("chatArea");
@@ -25,9 +24,10 @@ const voiceBtn = document.getElementById("voiceBtn");
 // ===============================
 let soundOn = true;
 let isLoading = false;
-
 let recognition = null;
 let isListening = false;
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 // ===============================
 // 🔽 MENU
@@ -61,7 +61,6 @@ function addMessage(text, type) {
     div.className = "message-bubble " +
         (type === "user" ? "user-message" : "bot-message");
 
-    // ✅ HTML support (FIR formatting fix)
     div.innerHTML = text;
 
     chatArea.appendChild(div);
@@ -82,18 +81,23 @@ function removeTyping() {
 }
 
 // ===============================
-// 🔊 SPEECH
+// 🔊 SPEECH (FIXED MOBILE)
 // ===============================
 function speakText(text) {
+
     if (!soundOn) return;
 
     window.speechSynthesis.cancel();
 
     let speech = new SpeechSynthesisUtterance(text);
+
     speech.lang = "hi-IN";
     speech.rate = 1;
+    speech.pitch = 1;
 
-    window.speechSynthesis.speak(speech);
+    setTimeout(() => {
+        window.speechSynthesis.speak(speech);
+    }, 100);
 }
 
 soundBtn.onclick = () => {
@@ -129,8 +133,10 @@ async function sendMessage(msg) {
 
         removeTyping();
 
-        addMessage(data.reply || "No response", "bot");
-        speakText(data.reply || "No response");
+        let reply = data.reply || "No response";
+
+        addMessage(reply, "bot");
+        speakText(reply);
 
     } catch (err) {
         removeTyping();
@@ -245,7 +251,7 @@ lawBtn.onclick = async () => {
 };
 
 // ===============================
-// 📄 FIR
+// 📄 FIR (FIXED BUG)
 // ===============================
 firBtn.onclick = async () => {
 
@@ -253,10 +259,10 @@ firBtn.onclick = async () => {
     let address = prompt("पता:");
     let mobile = prompt("मोबाइल नंबर:");
     let incident = prompt("घटना का विवरण:");
-    let date = prompt("घटना की तारीख:");
+    let date = prompt("तारीख:");
     let time = prompt("समय:");
-    let police_station = prompt("थाना नाम:");
-    let sections = prompt("धारा (optional):");
+    let police_station = prompt("थाना:");
+    let sections = prompt("धारा:");
 
     if (!name || !incident) return;
 
@@ -271,7 +277,7 @@ firBtn.onclick = async () => {
 
         let data = await res.json();
 
-        addMessage("<pre>"+data.fir+"</pre", "bot");
+        addMessage("<pre>" + data.fir + "</pre>", "bot");
         speakText(data.fir);
 
     } catch {
@@ -280,19 +286,18 @@ firBtn.onclick = async () => {
 };
 
 // ===============================
-// 🎤 VOICE (ULTIMATE SAFE FIX)
+// 🎤 VOICE (FULL FIXED)
 // ===============================
 function startVoice() {
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
     if (!SpeechRecognition) {
-        alert("❌ Browser support नहीं है (Chrome use करो)");
+        alert("❌ Chrome use करो");
         return;
     }
 
     recognition = new SpeechRecognition();
     recognition.lang = "hi-IN";
+    recognition.continuous = false;
     recognition.interimResults = false;
 
     recognition.onstart = () => {
@@ -307,9 +312,8 @@ function startVoice() {
         sendMessage(text);
     };
 
-    recognition.onerror = (event) => {
-        console.error(event.error);
-        addMessage("Mic error: " + event.error, "bot");
+    recognition.onerror = (e) => {
+        addMessage("Mic error: " + e.error, "bot");
     };
 
     recognition.onend = () => {
@@ -320,16 +324,8 @@ function startVoice() {
     recognition.start();
 }
 
-// 🎤 BUTTON CLICK (FULL SAFE)
 voiceBtn.onclick = async () => {
 
-    // ❌ SUPPORT CHECK
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("❌ Mic support नहीं है\n\n👉 Use: Chrome + HTTPS या localhost");
-        return;
-    }
-
-    // 🛑 STOP MODE
     if (isListening && recognition) {
         recognition.stop();
         isListening = false;
@@ -340,19 +336,8 @@ voiceBtn.onclick = async () => {
     try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
         startVoice();
-    } catch (err) {
-
-        console.error(err);
-
-        if (err.name === "NotAllowedError") {
-            alert("❌ Mic permission blocked\n\n🔒 icon → Allow करो");
-        }
-        else if (err.name === "NotFoundError") {
-            alert("❌ Mic device नहीं मिला");
-        }
-        else {
-            alert("❌ Mic error: " + err.message);
-        }
+    } catch {
+        alert("Mic permission allow करो 🔒");
     }
 };
 
