@@ -3,5 +3,4 @@ openai
 python-dotenv
 pillow
 pytesseract
-pyttsx3
 werkzeug
