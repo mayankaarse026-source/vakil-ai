@@ -11,8 +11,6 @@ from PIL import Image
 import pytesseract
 from werkzeug.utils import secure_filename
 import uuid
-import pyttsx3
-import threading   # ✅ NEW (for speed)
 
 # ==============================
 # 🔐 ENV
@@ -31,21 +29,6 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# ==============================
-# 🔊 VOICE OUTPUT (NON-BLOCKING)
-# ==============================
-engine = pyttsx3.init()
-
-def speak(text):
-    try:
-        engine.say(text)
-        engine.runAndWait()
-    except:
-        pass
-
-def speak_async(text):
-    threading.Thread(target=speak, args=(text,)).start()   # ✅ FAST
 
 # ==============================
 # 🔑 TESSERACT
@@ -102,16 +85,13 @@ def load_history():
 # ==============================
 api_key = os.getenv("OPENROUTER_API_KEY")
 
-if not api_key:
-    raise ValueError("OPENROUTER_API_KEY missing")
-
 client = OpenAI(
     api_key=api_key,
     base_url="https://openrouter.ai/api/v1"
 )
 
 # ==============================
-# 🧠 AI FUNCTION (FASTER)
+# 🧠 AI FUNCTION
 # ==============================
 def vakil_ai(user_input):
     try:
@@ -121,8 +101,8 @@ def vakil_ai(user_input):
                 {"role": "system", "content": "आप भारतीय कानूनी सहायक हैं। छोटा और स्पष्ट जवाब दें।"},
                 {"role": "user", "content": user_input}
             ],
-            temperature=0.3,      # ✅ faster + stable
-            max_tokens=150        # ✅ faster
+            temperature=0.3,
+            max_tokens=150
         )
 
         return response.choices[0].message.content.strip()
@@ -131,13 +111,11 @@ def vakil_ai(user_input):
         return f"AI Error: {str(e)}"
 
 # ==============================
-# 🖼️ OCR (OPTIMIZED + FAST)
+# 🖼️ OCR
 # ==============================
 def read_image_text(path):
     try:
         img = Image.open(path)
-
-        # ✅ resize for speed
         img = img.resize((800, 800))
         img = img.convert("L")
 
@@ -146,7 +124,6 @@ def read_image_text(path):
         if not text:
             return "कोई टेक्स्ट नहीं मिला", ""
 
-        # ✅ skip AI if text too big
         answer = ""
         if len(text) < 1000:
             answer = vakil_ai("संक्षेप में समझाओ: " + text)
@@ -164,38 +141,31 @@ def generate_fir_advanced(name, address, mobile, incident, date, time, police_st
 
     return f"""
 सेवा में,
-थाना प्रभारी,  
+थाना प्रभारी,
 {police_station}
 
 दिनांक: {today}
 
-विषय: प्रथम सूचना रिपोर्ट (FIR) दर्ज कराने हेतु आवेदन
+विषय: FIR दर्ज कराने हेतु आवेदन
 
 महोदय,
 
-मैं {name}, निवासी {address}, मोबाइल नंबर {mobile}, 
-आपके थाना क्षेत्र में घटित एक घटना के संबंध
- में यह आवेदन प्रस्तुत कर रहा/रही हूँ।
+मैं {name}, निवासी {address}, मोबाइल नंबर {mobile} हूँ।
 
-घटना का दिनांक: {date}  
-घटना का समय: {time}  
+घटना का दिनांक: {date}
+घटना का समय: {time}
 
-घटना का विवरण:  
+घटना का विवरण:
 {incident}
 
-अतः आपसे निवेदन है कि उक्त घटना के संबंध में 
-उचित धाराओं में मामला दर्ज कर आवश्यक कानूनी कार्यवाही करने की कृपा करें।
+कृपया उचित कानूनी कार्यवाही करें।
 
-{f"लागू धाराएँ (यदि ज्ञात हों): {sections}" if sections else ""}
-
-मैं यह घोषणा करता/करती हूँ
- कि उपरोक्त दी गई जानकारी मेरे ज्ञान एवं विश्वास के अनुसार सत्य है।
+{f"लागू धाराएँ: {sections}" if sections else ""}
 
 धन्यवाद।
 
-भवदीय,  
-{name}  
-{address}  
+भवदीय,
+{name}
 मोबाइल: {mobile}
 """.strip()
 
@@ -206,48 +176,27 @@ def generate_fir_advanced(name, address, mobile, incident, date, time, police_st
 def home():
     return render_template("index.html")
 
-# ==============================
-# 💬 CHAT (FAST)
-# ==============================
 @app.route("/chat", methods=["POST"])
 def chat():
-    try:
-        data = request.json
-        user_msg = data.get("message", "").strip()
+    data = request.json
+    user_msg = data.get("message", "").strip()
 
-        if not user_msg:
-            return jsonify({"reply": "कृपया संदेश लिखें"})
+    if not user_msg:
+        return jsonify({"reply": "कृपया संदेश लिखें"})
 
-        if user_msg.lower() in ["hi", "hello", "namaste"]:
-            bot_reply = "नमस्ते! मैं आपकी कानूनी सहायता के लिए हूँ।"
-        else:
-            bot_reply = vakil_ai(user_msg)
+    if user_msg.lower() in ["hi", "hello", "namaste"]:
+        bot_reply = "नमस्ते! मैं आपकी कानूनी सहायता के लिए हूँ।"
+    else:
+        bot_reply = vakil_ai(user_msg)
 
-        save_history(user_msg, bot_reply)
+    save_history(user_msg, bot_reply)
 
-        speak_async(bot_reply)   # ✅ NON-BLOCKING
+    return jsonify({"reply": bot_reply})
 
-        return jsonify({"reply": bot_reply})
-
-    except Exception as e:
-        return jsonify({"reply": f"Server Error: {str(e)}"})
-
-# ==============================
-# 📎 UPLOAD (FAST)
-# ==============================
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
-        if "file" not in request.files:
-            return jsonify({"error": "File नहीं मिला"})
-
         file = request.files["file"]
-
-        if file.filename == "":
-            return jsonify({"error": "Filename खाली है"})
-
-        if not allowed_file(file.filename):
-            return jsonify({"error": "सिर्फ PNG/JPG allowed है"})
 
         filename = secure_filename(file.filename)
         unique_name = str(uuid.uuid4()) + "_" + filename
@@ -266,34 +215,20 @@ def upload():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ==============================
-# 📂 IMAGE ROUTE
-# ==============================
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
-# ==============================
-# 📜 HISTORY
-# ==============================
-@app.route("/history", methods=["GET"])
+@app.route("/history")
 def history():
     return jsonify(load_history())
 
-# ==============================
-# ⚖️ LAW
-# ==============================
 @app.route("/law", methods=["POST"])
 def law():
     data = request.json
-    query = data.get("query", "")
-
-    result = vakil_ai("भारतीय कानून में समझाओ: " + query)
+    result = vakil_ai("भारतीय कानून में समझाओ: " + data.get("query", ""))
     return jsonify({"result": result})
 
-# ==============================
-# 📄 FIR API
-# ==============================
 @app.route("/fir", methods=["POST"])
 def fir():
     data = request.json
@@ -315,5 +250,5 @@ def fir():
 # 🚀 RUN
 # ==============================
 if __name__ == "__main__":
-    port=int(os.environ.get("PORT",10000))
-    app.run(host="0.0.0.0", port=10000, debug=False)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
