@@ -1,3 +1,4 @@
+
 document.addEventListener("DOMContentLoaded", () => {
 
 const chatArea = document.getElementById("chatArea");
@@ -56,8 +57,12 @@ document.addEventListener("click", (e) => {
 // ===============================
 function addMessage(text, type) {
     let div = document.createElement("div");
-    div.className = "message-bubble " + (type === "user" ? "user-message" : "bot-message");
-    div.textContent = text;
+
+    div.className = "message-bubble " +
+        (type === "user" ? "user-message" : "bot-message");
+
+    // ✅ HTML support (FIR formatting fix)
+    div.innerHTML = text;
 
     chatArea.appendChild(div);
     chatArea.scrollTop = chatArea.scrollHeight;
@@ -243,8 +248,15 @@ lawBtn.onclick = async () => {
 // 📄 FIR
 // ===============================
 firBtn.onclick = async () => {
+
     let name = prompt("नाम:");
-    let incident = prompt("घटना:");
+    let address = prompt("पता:");
+    let mobile = prompt("मोबाइल नंबर:");
+    let incident = prompt("घटना का विवरण:");
+    let date = prompt("घटना की तारीख:");
+    let time = prompt("समय:");
+    let police_station = prompt("थाना नाम:");
+    let sections = prompt("धारा (optional):");
 
     if (!name || !incident) return;
 
@@ -252,12 +264,14 @@ firBtn.onclick = async () => {
         let res = await fetch("/fir", {
             method:"POST",
             headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({name, incident})
+            body:JSON.stringify({
+                name, address, mobile, incident, date, time, police_station, sections
+            })
         });
 
         let data = await res.json();
 
-        addMessage(data.fir, "bot");
+        addMessage("<pre>"+data.fir+"</pre", "bot");
         speakText(data.fir);
 
     } catch {
