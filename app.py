@@ -176,6 +176,7 @@ def generate_fir_advanced(name, address, mobile, incident, date, time, police_st
 """
 #{f"धाराएँ: {sections}" if sections else ""}
 """
+धन्यवाद
 
 भवदीय,
 {name}
