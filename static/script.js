@@ -262,7 +262,6 @@ firBtn.onclick = async () => {
     let date = prompt("तारीख:");
     let time = prompt("समय:");
     let police_station = prompt("थाना:");
-   // let sections = prompt("धारा:");
 
     if (!name || !incident) return;
 
