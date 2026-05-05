@@ -167,15 +167,13 @@ def generate_fir_advanced(name, address, mobile, incident, date, time, police_st
 
 घटना:
 {incident}
-
 दिनांक: {date}
 समय: {time}
 
+अतः आपसे निवेदन है कि
+कृपया इस मामले में FIR दर्ज कर
+उचित कानूनी कार्यवाही करने की कृपा करें।
 
-अतः आपसे निवेदन है कि कृपया इस मामले में FIR दर्ज कर उचित कानूनी कार्यवाही करने की कृपा करें।
-"""
-#{f"धाराएँ: {sections}" if sections else ""}
-"""
 धन्यवाद
 
 भवदीय,
