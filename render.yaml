@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: vakil-ai
+    env: python
+    buildCommand: |
+      apt-get update
+      apt-get install -y tesseract-ocr
+      apt-get install -y tesseract-ocr-hin
+      pip install -r requirements.txt
+    startCommand: gunicorn app:app
