@@ -1,6 +1,7 @@
-flask
+Flask
 openai
 python-dotenv
 pillow
 pytesseract
+gunicorn
 werkzeug
