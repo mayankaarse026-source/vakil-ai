@@ -24,7 +24,7 @@ body {
 .chat-main-container {
     width: 95%;
     max-width: 400px;
-    height: 100dvh; /* ✅ mobile friendly fix */
+    height: 90dvh; /* ✅ mobile friendly fix */
     /* प्रीमियम कांच जैसा इफ़ेक्ट (Blur) */
     background: rgba(255, 255, 255, 0.05);
     -webkit-backdrop-filter: blur(20px);
